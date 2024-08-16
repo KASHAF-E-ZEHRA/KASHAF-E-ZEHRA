@@ -1,0 +1,130 @@
+TASK 2 : Implement a spam email classifier using machine learning algorithms like Naive Bayes or Support Vector Machines.
+
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <string>
+#include <unordered_map>
+#include <algorithm>
+
+using namespace std;
+
+// Function to read CSV file and return a vector of pairs (label, text)
+vector<pair<int, string>> readCSV(const string& filename) {
+    vector<pair<int, string>> data;
+    ifstream file(filename);
+    string line;
+    while (getline(file, line)) {
+        stringstream ss(line);
+        string label, text;
+        getline(ss, label, ',');
+        getline(ss, text);
+        data.push_back(make_pair(stoi(label), text));
+    }
+    return data;
+}
+
+// Function to preprocess text (lowercase and remove non-alphabetic characters)
+string preprocessText(const string& text) {
+    string result;
+    for (char c : text) {
+        if (isalpha(c)) {
+            result += tolower(c);
+        } else {
+            result += ' ';
+        }
+    }
+    return result;
+}
+
+// Function to tokenize text into words
+vector<string> tokenize(const string& text) {
+    stringstream ss(text);
+    string word;
+    vector<string> tokens;
+    while (ss >> word) {
+        tokens.push_back(word);
+    }
+    return tokens;
+}
+
+// Function to train Naive Bayes classifier
+unordered_map<string, pair<int, int>> trainNaiveBayes(const vector<pair<int, string>>& data, int& spamCount, int& hamCount) {
+    unordered_map<string, pair<int, int>> wordCounts;
+    spamCount = 0;
+    hamCount = 0;
+
+    for (const auto& item : data) {
+        int label = item.first;
+        string text = preprocessText(item.second);
+        vector<string> words = tokenize(text);
+
+        if (label == 1) {
+            spamCount++;
+        } else {
+            hamCount++;
+        }
+
+        for (const string& word : words) {
+            if (wordCounts.find(word) == wordCounts.end()) {
+                wordCounts[word] = {0, 0};
+            }
+            if (label == 1) {
+                wordCounts[word].first++;
+            } else {
+                wordCounts[word].second++;
+            }
+        }
+    }
+
+    return wordCounts;
+}
+
+// Function to classify a new text
+int classifyNaiveBayes(const string& text, const unordered_map<string, pair<int, int>>& wordCounts, int spamCount, int hamCount) {
+    string preprocessedText = preprocessText(text);
+    vector<string> words = tokenize(preprocessedText);
+
+    double spamProb = static_cast<double>(spamCount) / (spamCount + hamCount);
+    double hamProb = static_cast<double>(hamCount) / (spamCount + hamCount);
+
+    for (const string& word : words) {
+        if (wordCounts.find(word) != wordCounts.end()) {
+            spamProb *= (static_cast<double>(wordCounts.at(word).first) + 1) / (spamCount + 2);
+            hamProb *= (static_cast<double>(wordCounts.at(word).second) + 1) / (hamCount + 2);
+        }
+    }
+
+    return spamProb > hamProb ? 1 : 0;
+}
+
+int main() {
+    // Load dataset
+    vector<pair<int, string>> data = readCSV("spam.csv");
+
+    // Split into training and testing sets
+    size_t train_size = static_cast<size_t>(0.8 * data.size());
+    vector<pair<int, string>> train_data(data.begin(), data.begin() + train_size);
+    vector<pair<int, string>> test_data(data.begin() + train_size, data.end());
+
+    // Train Naive Bayes classifier
+    int spamCount, hamCount;
+    unordered_map<string, pair<int, int>> wordCounts = trainNaiveBayes(train_data, spamCount, hamCount);
+
+    // Evaluate the classifier
+    int correct = 0;
+    for (const auto& item : test_data) {
+        int label = item.first;
+        string text = item.second;
+        int prediction = classifyNaiveBayes(text, wordCounts, spamCount, hamCount);
+        if (prediction == label) {
+            Correct++ ;
+        }
+    }
+
+    double accuracy = static_cast<double>(correct) / test_data.size();
+    cout << "Accuracy: " << accuracy << endl;
+
+    return 0;
+}
