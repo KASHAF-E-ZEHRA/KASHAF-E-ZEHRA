@@ -1,0 +1,111 @@
+Task # 4 : Build a natural language processing (NLP) model to perform sentiment analysis onsocial media posts or product reviews..
+
+#include &lt;tensorflow/cc/client/client_session.h&gt;
+#include &lt;tensorflow/cc/ops/standard_ops.h&gt;
+#include &lt;tensorflow/core/framework/tensor.h&gt;
+#include &lt;tensorflow/core/public/session.h&gt;
+#include &lt;tensorflow/core/platform/env.h&gt;
+#include &lt;iostream&gt;
+#include &lt;fstream&gt;
+#include &lt;string&gt;
+#include &lt;vector&gt;
+#include &lt;algorithm&gt;
+
+// Function to preprocess text (tokenization, lowercasing, etc.)
+Std::vector&lt;std::string&gt; preprocess_text(const std::string&amp; text) {
+Std::vector&lt;std::string&gt; tokens;
+// Example tokenization by spaces
+Std::istringstream iss(text);
+For (std::string s; iss &gt;&gt; s;) {
+// Lowercasing
+Std::transform(s.begin(), s.end(), s.begin(), ::tolower);
+Tokens.push_back(s);
+}
+Return tokens;
+}
+
+// Function to load vocabulary
+Std::unordered_map&lt;std::string, int&gt; load_vocab(const std::string&amp; vocab_file) {
+Std::unordered_map&lt;std::string, int&gt; vocab;
+Std::ifstream file(vocab_file);
+Std::string word;
+Int index;
+While (file &gt;&gt; word &gt;&gt; index) {
+Vocab[word] = index;
+}
+Return vocab;
+}
+
+// Convert tokens to IDs using the vocabulary
+Std::vector&lt;int&gt; tokens_to_ids(const std::vector&lt;std::string&gt;&amp; tokens, const
+std::unordered_map&lt;std::string, int&gt;&amp; vocab) {
+Std::vector&lt;int&gt; ids;
+For (const auto&amp; token : tokens) {
+Auto it = vocab.find(token);
+If (it != vocab.end()) {
+Ids.push_back(it-&gt;second);
+} else {
+Ids.push_back(vocab.at(“[UNK]”)); // Unknown token
+}
+}
+Return ids;
+}
+
+Int main() {
+// Load vocabulary
+Std::unordered_map&lt;std::string, int&gt; vocab = load_vocab(“vocab.txt”);
+
+// Load the model
+Std::unique_ptr&lt;tensorflow::Session&gt; session;
+Tensorflow::SessionOptions session_options;
+Tensorflow::Status status = tensorflow::NewSession(session_options, &amp;session);
+If (!status.ok()) {
+Std::cerr &lt;&lt; status.ToString() &lt;&lt; std::endl;
+Return 1;
+}
+Tensorflow::GraphDef graph_def;
+Status = tensorflow::ReadBinaryProto(tensorflow::Env::Default(), “model.pb”,
+&amp;graph_def);
+If (!status.ok()) {
+Std::cerr &lt;&lt; status.ToString() &lt;&lt; std::endl;
+Return 1;
+}
+Status = session-&gt;Create(graph_def);
+If (!status.ok()) {
+Std::cerr &lt;&lt; status.ToString() &lt;&lt; std::endl;
+Return 1;
+}
+
+// Sample input text
+Std::string input_text = “I love this movie!”;
+
+Std::vector&lt;std::string&gt; tokens = preprocess_text(input_text);
+Std::vector&lt;int&gt; input_ids = tokens_to_ids(tokens, vocab);
+
+// Create input tensor
+Tensorflow::Tensor input_tensor(tensorflow::DT_INT32, tensorflow::TensorShape({1,
+input_ids.size()}));
+For (size_t I = 0; I &lt; input_ids.size(); ++i) {
+Input_tensor.matrix&lt;int&gt;()(0, i) = input_ids[i];
+}
+
+// Run the model
+Std::vector&lt;tensorflow::Tensor&gt; outputs;
+Status = session-&gt;Run({{“input_tensor”, input_tensor}}, {“output_tensor”}, {},
+&amp;outputs);
+If (!status.ok()) {
+Std::cerr &lt;&lt; status.ToString() &lt;&lt; std::endl;
+Return 1;
+}
+
+// Get the prediction
+Auto output = outputs[0].flat&lt;float&gt;();
+Int sentiment = (output(0) &gt; 0.5) ? 1 : 0;
+Std::cout &lt;&lt; “Sentiment: “ &lt;&lt; (sentiment == 1 ? “Positive” : “Negative”) &lt;&lt; std::endl;
+
+// Close the session
+Session-&gt;Close();
+
+Return 0;
+
+}
